@@ -1,0 +1,11 @@
+[package]
+name = "cruft"
+version = "1.0.0"
+authors = ["Robert Gill <locke@sdf.org>"]
+edition = "2018"
+license = "MIT"
+
+[dependencies]
+clap = "2.33"
+md5 = "0.7"
+threadpool = "1.7"
