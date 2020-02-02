@@ -2,17 +2,15 @@ use std::io;
 use std::{fs, fs::ReadDir};
 use std::path::PathBuf;
 
-use crate::PKG_DIR;
-
 pub struct Catalogs {
     top: ReadDir,
     stack: Vec<ReadDir>
 }
 
 impl Catalogs {
-    pub fn new() -> Catalogs {
+    pub fn new(pkg_dir: &str) -> Catalogs {
         let stack = Vec::new();
-        let top = fs::read_dir(PKG_DIR).unwrap();
+        let top = fs::read_dir(pkg_dir).unwrap();
         Catalogs { top, stack }
     }
 

@@ -8,28 +8,28 @@ use std::sync::{Arc,Mutex};
 
 use threadpool::ThreadPool;
 
-use crate::file_info::{FileInfo,FileType};
 use crate::catalogs::Catalogs;
+use crate::file_info::{FileInfo,FileType};
+use crate::settings::Settings;
 
-pub struct PkgReader {
+pub struct PkgReader<'a> {
     pool: ThreadPool,
-    read_md5: bool,
-    read_mtime: bool
+    settings: &'a Settings
 }
 
-impl PkgReader {
-    pub fn new(read_md5: bool, read_mtime: bool) -> PkgReader {
+impl<'a> PkgReader<'a> {
+    pub fn new(settings: &'a Settings) -> PkgReader {
         let pool = threadpool::Builder::new().build();
-        PkgReader { pool, read_md5, read_mtime }
+        PkgReader { pool, settings }
     }
 
     pub fn read(&self) -> HashSet<FileInfo> {
         let set = Arc::new(Mutex::new(HashSet::new()));
-        for catalog in Catalogs::new() {
+        for catalog in Catalogs::new(self.settings.pkg_dir()) {
             if let Ok(pathbuf) = catalog {
                 let set = set.clone();
-                let read_md5 = self.read_md5;
-                let read_mtime = self.read_mtime;
+                let read_md5 = self.settings.read_md5();
+                let read_mtime = self.settings.read_mtime();
                 self.pool.execute(move || {
                     let file = File::open(pathbuf).unwrap();
                     let reader = BufReader::new(file);

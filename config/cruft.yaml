@@ -1,0 +1,29 @@
+# Path where the Gentoo package database is located
+pkg_dir: /var/db/pkg
+
+# Calculate MD5 sums on file system and compare with records
+# in the package database. This causes the file system scan to
+# be very slow.
+md5:   false
+
+# Compare filesystem mtimes with mtimes recorded in the package database.
+mtime: false
+
+# Do not recurse into the following directories when scanning the file system.
+ignore_paths:
+        - /boot
+        - /dev
+        - /etc/ssl/certs
+        - /home
+        - /proc
+        - /root
+        - /run
+        - /sys
+        - /usr/src
+        - /var/cache/distfiles
+        - /var/db/pkg
+        - /var/db/repos/gentoo
+
+# Specifically ignore the following files when scanning the file system.
+#ignore_files:
+#        - /home/user/ignore_me.txt

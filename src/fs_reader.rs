@@ -14,13 +14,12 @@ use std::mem;
 use threadpool::ThreadPool;
 
 use crate::file_info::{FileInfo,FileType};
+use crate::settings::Settings;
 
-pub struct FsReader {
-    ignore_paths: Option<Vec<PathBuf>>,
+pub struct FsReader<'a> {
     pool: ThreadPool,
     results: Arc<Mutex<HashSet<FileInfo>>>,
-    read_md5: bool,
-    read_mtime: bool
+    settings: &'a Settings
 }
 
 macro_rules! systime_to_unix {
@@ -31,24 +30,13 @@ macro_rules! systime_to_unix {
     }
 }
 
-impl FsReader {
-    pub fn new(ignore_paths: Option<&[&str]>, read_md5: bool, read_mtime: bool) -> FsReader {
-        let mut paths: Option<Vec<PathBuf>> = None;
-        if let Some(ignore_paths) = ignore_paths {
-            let mut vec = Vec::new();
-            for path in ignore_paths {
-                vec.push(PathBuf::from(*path))
-            }
-            paths = Some(vec)
-        }
-
+impl<'a> FsReader<'a> {
+    pub fn new(settings: &'a Settings) -> FsReader {
         let pool = threadpool::Builder::new().build();
         FsReader {
-            ignore_paths: paths,
             pool: pool,
             results: Arc::new(Mutex::new(HashSet::new())),
-            read_md5: read_md5,
-            read_mtime: read_mtime
+            settings: settings
         }
     }
 
@@ -96,25 +84,23 @@ impl FsReader {
         Arc::try_unwrap(results).unwrap().into_inner().unwrap()
     }
 
-    fn read_dir<'a>(self: Pin<&'a Self>, path: PathBuf) -> Result<(), io::Error> {
+    fn read_dir<'r>(self: Pin<&'r Self>, path: PathBuf) -> Result<(), io::Error> {
         for entry in fs::read_dir(path)? {
             let entry = entry?;
-            if let Some(ignore_paths) = &self.ignore_paths {
-                if ignore_paths.contains(&entry.path()) {
-                    continue;
-                }
-            }
+            if Self::ignore_path(&self, &entry.path()) { continue; }
 
-            let pathbuf = entry.path();
-            let results = self.results.clone();
-            let read_md5 = self.read_md5;
-            let read_mtime = self.read_mtime;
-            self.pool.execute(move || {
-                if let Ok(fileinfo) = FsReader::stat(pathbuf, read_md5, read_mtime) {
-                    let mut set = results.lock().unwrap();
-                    set.insert(fileinfo);
-                }
-            });
+            if !Self::ignore_file(&self, &entry.path()) {
+                let pathbuf = entry.path();
+                let results = self.results.clone();
+                let read_md5 = self.settings.read_md5();
+                let read_mtime = self.settings.read_mtime();
+                self.pool.execute(move || {
+                    if let Ok(fileinfo) = FsReader::stat(pathbuf, read_md5, read_mtime) {
+                        let mut set = results.lock().unwrap();
+                        set.insert(fileinfo);
+                    }
+                });
+            }
 
             let stat = fs::symlink_metadata(&entry.path())?;
             if !stat.file_type().is_symlink() && stat.is_dir() {
@@ -122,6 +108,20 @@ impl FsReader {
             }
         }
         Ok(())
+    }
+
+    fn ignore_file(&self, path: &PathBuf) -> bool {
+        if let Some(ignore_files) = self.settings.ignore_files() {
+            if ignore_files.contains(path) { return true; }
+        }
+        false
+    }
+
+    fn ignore_path(&self, path: &PathBuf) -> bool {
+        if let Some(ignore_paths) = self.settings.ignore_paths() {
+            if ignore_paths.contains(path) { return true; }
+        }
+        false
     }
 }
 
