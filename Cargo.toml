@@ -5,9 +5,22 @@ authors = ["Robert Gill <locke@sdf.org>"]
 edition = "2018"
 license = "MIT"
 
+[profile.release]
+codegen-units = 1
+lto = true
+panic = 'abort'
+
 [dependencies]
 clap = "2.33"
-config = "0.10"
 md5 = "0.7"
-serde = { version = "1.0", features = ["derive"] }
 threadpool = "1.7"
+
+[dependencies.config]
+version = "0.10"
+default-features = false
+features = ["yaml"]
+
+[dependencies.serde]
+version = "1.0"
+default-features = false
+features = ["derive"]
