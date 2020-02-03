@@ -15,6 +15,9 @@ clap = "2.33"
 md5 = "0.7"
 threadpool = "1.7"
 
+[dependencies.fs_tree]
+path = "../fs_tree"
+
 [dependencies.config]
 version = "0.10"
 default-features = false

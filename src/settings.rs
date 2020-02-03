@@ -31,8 +31,8 @@ macro_rules! unwrap_bool_arg {
 #[derive(Debug,Default,Deserialize)]
 pub struct Settings {
     pkg_dir: String,
-    ignore_files: Option<HashSet<PathBuf>>,
-    ignore_paths: Option<HashSet<PathBuf>>,
+    ignore_files: Option<Vec<PathBuf>>,
+    ignore_paths: Option<Vec<PathBuf>>,
     md5: bool,
     mtime: bool
 }
@@ -54,12 +54,12 @@ impl Settings {
         &self.pkg_dir
     }
 
-    pub fn ignore_files(&self) -> &Option<HashSet<PathBuf>> {
-        &self.ignore_files
+    pub fn ignore_files(&self) -> Option<&Vec<PathBuf>> {
+        self.ignore_files.as_ref()
     }
 
-    pub fn ignore_paths(&self) -> &Option<HashSet<PathBuf>> {
-        &self.ignore_paths
+    pub fn ignore_paths(&self) -> Option<&Vec<PathBuf>> {
+        self.ignore_paths.as_ref()
     }
 
     pub fn read_md5(&self) -> bool {
@@ -71,29 +71,32 @@ impl Settings {
     }
 
     fn merge_args(mut s: Self, args: &ArgMatches) -> Result<Self,ConfigError> {
-        s.md5   = unwrap_bool_arg!(args.value_of("md5"));
-        s.mtime = unwrap_bool_arg!(args.value_of("mtime"));
+        if args.occurrences_of("md5") > 0 {
+            s.md5 = unwrap_bool_arg!(args.value_of("md5"));
+        }
+
+        if args.occurrences_of("mtime") > 0 {
+            s.mtime = unwrap_bool_arg!(args.value_of("mtime"));
+        }
 
         if args.occurrences_of("pkg_dir") > 0 {
             s.pkg_dir = args.value_of("pkg_dir").unwrap().to_string();
         }
 
         if args.is_present("ignore_paths") {
-            let paths = unwrap_array_arg!(args.values_of("ignore_paths"));
-            if let Some(ignore_paths) = &mut s.ignore_paths {
-                ignore_paths.extend(paths);
-            } else {
-                s.ignore_paths = Some(paths);
+            let mut paths = unwrap_array_arg!(args.values_of("ignore_paths"));
+            if let Some(ignore_paths) = s.ignore_paths {
+                paths.extend(ignore_paths);
             }
+            s.ignore_paths = Some(paths.into_iter().collect());
         }
 
         if args.is_present("ignore_files") {
-            let files = unwrap_array_arg!(args.values_of("ignore_files"));
-            if let Some(ignore_files) = &mut s.ignore_files {
-                ignore_files.extend(files);
-            } else {
-                s.ignore_files = Some(files);
+            let mut files = unwrap_array_arg!(args.values_of("ignore_files"));
+            if let Some(ignore_files) = s.ignore_files {
+                files.extend(ignore_files);
             }
+            s.ignore_files = Some(files.into_iter().collect());
         }
 
         Ok(s)

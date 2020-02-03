@@ -6,11 +6,11 @@ use std::{fs,fs::File};
 use std::{io,io::Read};
 use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
-use std::pin::Pin;
 use std::sync::{Arc,Mutex};
 use std::time::SystemTime;
 use std::mem;
 
+use fs_tree::{FsTree,FsTreeBuilder};
 use threadpool::ThreadPool;
 
 use crate::file_info::{FileInfo,FileType};
@@ -18,6 +18,7 @@ use crate::settings::Settings;
 
 pub struct FsReader<'a> {
     pool: ThreadPool,
+    fs_tree: FsTree,
     results: Arc<Mutex<HashSet<FileInfo>>>,
     settings: &'a Settings
 }
@@ -33,11 +34,39 @@ macro_rules! systime_to_unix {
 impl<'a> FsReader<'a> {
     pub fn new(settings: &'a Settings) -> FsReader {
         let pool = threadpool::Builder::new().build();
+        let mut builder = FsTreeBuilder::new("/");
+        if let Some(paths) = settings.ignore_paths() {
+            builder.set_ignore_paths(paths);
+        }
+
+        let fs_tree = builder.build().unwrap();
         FsReader {
             pool: pool,
+            fs_tree: fs_tree,
             results: Arc::new(Mutex::new(HashSet::new())),
             settings: settings
         }
+    }
+
+    pub fn read(&mut self) -> HashSet<FileInfo> {
+        while let Some(result) = self.fs_tree.next() {
+            if let Ok(entry) = result {
+                let results = self.results.clone();
+                let read_md5 = self.settings.read_md5();
+                let read_mtime = self.settings.read_mtime();
+                self.pool.execute(move || {
+                    if let Ok(fileinfo) = Self::stat(entry, read_md5, read_mtime) {
+                        let mut set = results.lock().unwrap();
+                        set.insert(fileinfo);
+                    }
+                });
+            }
+        }
+        self.pool.join();
+
+        let results = Arc::new(Mutex::new(HashSet::new()));
+        let results = mem::replace(&mut self.results, results);
+        Arc::try_unwrap(results).unwrap().into_inner().unwrap()
     }
 
     pub fn stat(filepath: PathBuf, read_md5: bool, read_mtime: bool) -> Result<FileInfo, io::Error> {
@@ -73,55 +102,6 @@ impl<'a> FsReader<'a> {
         }
 
         Ok(FileInfo { ftype, path, md5, mtime, executable })
-    }
-
-    pub fn read(&mut self) -> HashSet<FileInfo> {
-        Self::read_dir(Pin::new(self), PathBuf::from("/")).unwrap();
-        self.pool.join();
-
-        let results = Arc::new(Mutex::new(HashSet::new()));
-        let results = mem::replace(&mut self.results, results);
-        Arc::try_unwrap(results).unwrap().into_inner().unwrap()
-    }
-
-    fn read_dir<'r>(self: Pin<&'r Self>, path: PathBuf) -> Result<(), io::Error> {
-        for entry in fs::read_dir(path)? {
-            let entry = entry?;
-            if Self::ignore_path(&self, &entry.path()) { continue; }
-
-            if !Self::ignore_file(&self, &entry.path()) {
-                let pathbuf = entry.path();
-                let results = self.results.clone();
-                let read_md5 = self.settings.read_md5();
-                let read_mtime = self.settings.read_mtime();
-                self.pool.execute(move || {
-                    if let Ok(fileinfo) = FsReader::stat(pathbuf, read_md5, read_mtime) {
-                        let mut set = results.lock().unwrap();
-                        set.insert(fileinfo);
-                    }
-                });
-            }
-
-            let stat = fs::symlink_metadata(&entry.path())?;
-            if !stat.file_type().is_symlink() && stat.is_dir() {
-                let _ = Self::read_dir(self, entry.path());
-            }
-        }
-        Ok(())
-    }
-
-    fn ignore_file(&self, path: &PathBuf) -> bool {
-        if let Some(ignore_files) = self.settings.ignore_files() {
-            if ignore_files.contains(path) { return true; }
-        }
-        false
-    }
-
-    fn ignore_path(&self, path: &PathBuf) -> bool {
-        if let Some(ignore_paths) = self.settings.ignore_paths() {
-            if ignore_paths.contains(path) { return true; }
-        }
-        false
     }
 }
 

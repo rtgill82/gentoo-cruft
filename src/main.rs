@@ -1,4 +1,6 @@
+extern crate fs_tree;
 extern crate serde;
+
 use std::process::exit;
 
 mod catalogs;

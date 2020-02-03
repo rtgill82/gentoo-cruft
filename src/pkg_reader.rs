@@ -25,7 +25,7 @@ impl<'a> PkgReader<'a> {
 
     pub fn read(&self) -> HashSet<FileInfo> {
         let set = Arc::new(Mutex::new(HashSet::new()));
-        for catalog in Catalogs::new(self.settings.pkg_dir()) {
+        for catalog in Catalogs::new(self.settings.pkg_dir()).unwrap() {
             if let Ok(pathbuf) = catalog {
                 let set = set.clone();
                 let read_md5 = self.settings.read_md5();
