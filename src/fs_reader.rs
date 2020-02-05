@@ -10,7 +10,7 @@ use std::sync::{Arc,Mutex};
 use std::time::SystemTime;
 use std::mem;
 
-use fs_tree::{FsTree,FsTreeBuilder};
+use fs_tree::{Error,FsTree,FsTreeBuilder};
 use threadpool::ThreadPool;
 
 use crate::file_info::{FileInfo,FileType};
@@ -32,24 +32,20 @@ macro_rules! systime_to_unix {
 }
 
 impl<'a> FsReader<'a> {
-    pub fn new(settings: &'a Settings) -> FsReader {
+    pub fn new(settings: &'a Settings) -> Result<FsReader, Error> {
         let pool = threadpool::Builder::new().build();
-        let mut builder = FsTreeBuilder::new("/");
-        if let Some(paths) = settings.ignore_paths() {
-            builder.set_ignore_paths(paths);
-        }
+        let fs_tree = Self::build_fstree(settings)?;
 
-        let fs_tree = builder.build().unwrap();
-        FsReader {
+        Ok(FsReader {
             pool: pool,
             fs_tree: fs_tree,
             results: Arc::new(Mutex::new(HashSet::new())),
             settings: settings
-        }
+        })
     }
 
     pub fn read(&mut self) -> HashSet<FileInfo> {
-        while let Some(result) = self.fs_tree.next() {
+        for result in &self.fs_tree {
             if let Ok(entry) = result {
                 let results = self.results.clone();
                 let read_md5 = self.settings.read_md5();
@@ -102,6 +98,19 @@ impl<'a> FsReader<'a> {
         }
 
         Ok(FileInfo { ftype, path, md5, mtime, executable })
+    }
+
+    fn build_fstree(settings: &Settings) -> Result<FsTree, Error> {
+        let mut builder = FsTreeBuilder::new("/");
+        if let Some(files) = settings.ignore_files() {
+            builder.set_ignore_files(files);
+        }
+
+        if let Some(paths) = settings.ignore_paths() {
+            builder.set_ignore_paths(paths);
+        }
+
+        builder.build()
     }
 }
 

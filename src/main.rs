@@ -25,7 +25,7 @@ fn main() {
     let pkg_reader = PkgReader::new(&settings);
     let catalog = pkg_reader.read();
 
-    let mut fs_reader = FsReader::new(&settings);
+    let mut fs_reader = FsReader::new(&settings).unwrap();
     let files = fs_reader.read();
 
     let mut cruft: Vec<&FileInfo> = files.difference(&catalog).collect();

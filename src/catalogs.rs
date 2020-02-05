@@ -1,15 +1,17 @@
 use fs_tree::Error;
-use fs_tree::{FsTree,FsTreeBuilder};
+use fs_tree::FsTreeBuilder;
+use fs_tree::IntoIter;
 use fs_tree::Result as FsTreeResult;
 
 pub struct Catalogs {
-    fs_tree: FsTree
+    fs_tree: IntoIter
 }
 
 impl Catalogs {
     pub fn new(pkg_dir: &str) -> Result<Catalogs, Error> {
         let fs_tree = FsTreeBuilder::new(pkg_dir)
-            .max_depth(1).build()?;
+            .max_depth(2).build()?
+            .into_iter();
         Ok(Catalogs { fs_tree })
     }
 }
