@@ -34,7 +34,8 @@ pub struct Settings {
     ignore_files: Option<Vec<PathBuf>>,
     ignore_paths: Option<Vec<PathBuf>>,
     md5: bool,
-    mtime: bool
+    mtime: bool,
+    verbose: bool
 }
 
 impl Settings {
@@ -44,6 +45,7 @@ impl Settings {
 
         conf.set_default("md5", false)?;
         conf.set_default("mtime", false)?;
+        conf.set_default("verbose", false)?;
         conf.set_default::<Option<Vec<String>>>("ignore_paths", None)?;
         conf.set_default::<Option<Vec<String>>>("ignore_files", None)?;
         conf.merge(File::with_name("config/cruft.yaml"))?;
@@ -70,6 +72,10 @@ impl Settings {
         self.mtime
     }
 
+    pub fn verbose(&self) -> bool {
+        self.verbose
+    }
+
     fn merge_args(mut s: Self, args: &ArgMatches) -> Result<Self,ConfigError> {
         if args.occurrences_of("md5") > 0 {
             s.md5 = unwrap_bool_arg!(args.value_of("md5"));
@@ -77,6 +83,10 @@ impl Settings {
 
         if args.occurrences_of("mtime") > 0 {
             s.mtime = unwrap_bool_arg!(args.value_of("mtime"));
+        }
+
+        if args.occurrences_of("verbose") > 0 {
+            s.verbose = true;
         }
 
         if args.occurrences_of("pkg_dir") > 0 {
@@ -140,5 +150,9 @@ fn parse_args() -> ArgMatches<'static> {
              .multiple(true)
              .value_names(&["path"])
              .help("Paths to ignore when traversing the file system"))
+        .arg(clap::Arg::with_name("verbose")
+             .long("verbose")
+             .short("v")
+             .help("Display warnings on STDERR"))
         .get_matches()
 }

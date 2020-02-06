@@ -46,16 +46,13 @@ impl<'a> FsReader<'a> {
 
     pub fn read(&mut self) -> HashSet<FileInfo> {
         for result in &self.fs_tree {
-            if let Ok(entry) = result {
-                let results = self.results.clone();
-                let read_md5 = self.settings.read_md5();
-                let read_mtime = self.settings.read_mtime();
-                self.pool.execute(move || {
-                    if let Ok(fileinfo) = Self::stat(entry, read_md5, read_mtime) {
-                        let mut set = results.lock().unwrap();
-                        set.insert(fileinfo);
+            match result {
+                Ok(entry) => Self::spawn_stat(self, entry),
+                Err(err) => {
+                    if self.settings.verbose() {
+                        eprintln!("Error accessing path {}", err);
                     }
-                });
+                }
             }
         }
         self.pool.join();
@@ -65,7 +62,7 @@ impl<'a> FsReader<'a> {
         Arc::try_unwrap(results).unwrap().into_inner().unwrap()
     }
 
-    pub fn stat(filepath: PathBuf, read_md5: bool, read_mtime: bool) -> Result<FileInfo, io::Error> {
+    pub fn stat(filepath: &PathBuf, read_md5: bool, read_mtime: bool) -> Result<FileInfo, io::Error> {
         let ftype: FileType;
         let path: String;
         let mut md5: Option<String> = None;
@@ -98,6 +95,29 @@ impl<'a> FsReader<'a> {
         }
 
         Ok(FileInfo { ftype, path, md5, mtime, executable })
+    }
+
+    fn spawn_stat(&self, entry: PathBuf) {
+        let results = self.results.clone();
+        let read_md5 = self.settings.read_md5();
+        let read_mtime = self.settings.read_mtime();
+        let verbose = self.settings.verbose();
+        self.pool.execute(move || {
+            let entry = entry;
+            match Self::stat(&entry, read_md5, read_mtime) {
+                Err(err) => {
+                    let path = entry.to_string_lossy();
+                    if verbose {
+                        eprintln!("Error reading file {}: {}", path, err);
+                    }
+                },
+
+                Ok(fileinfo) => {
+                    let mut set = results.lock().unwrap();
+                    set.insert(fileinfo);
+                }
+            }
+        });
     }
 
     fn build_fstree(settings: &Settings) -> Result<FsTree, Error> {
