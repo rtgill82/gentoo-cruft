@@ -1,6 +1,7 @@
 extern crate fs_tree;
 extern crate serde;
 
+use std::collections::HashSet;
 use std::process::exit;
 
 mod catalogs;
@@ -28,9 +29,46 @@ fn main() {
     let mut fs_reader = FsReader::new(&settings).unwrap();
     let files = fs_reader.read();
 
-    let mut cruft: Vec<&FileInfo> = files.difference(&catalog).collect();
-    cruft.sort_by(|a, b| a.path.cmp(&b.path));
-    for file in cruft {
-        println!("  {}", file);
+    let mut diff = files.difference(&catalog)
+                        .map(|item| item.clone())
+                        .collect::<Vec<FileInfo>>();
+    diff.sort_by(|a, b| a.path.cmp(&b.path));
+
+    if !diff.is_empty() {
+        println!("Files not in package database:");
+        for file in &diff {
+            println!("  {}", file);
+        }
+    }
+
+    if settings.read_md5() || settings.read_mtime() {
+        let catalog = catalog.iter()
+                             .map(|item| {
+                                 let mut item = item.clone();
+                                 item.full_hash = true;
+                                 item
+                             }).collect::<HashSet<FileInfo>>();
+
+        let diff = diff.iter().map(|item| item.clone())
+                       .collect::<HashSet<FileInfo>>();
+
+        let diff = files.symmetric_difference(&diff)
+                        .map(|item| {
+                            let mut item = item.clone();
+                            item.full_hash = true;
+                            item
+                        }).collect::<HashSet<FileInfo>>();
+
+        let mut diff = diff.difference(&catalog)
+                       .map(|item| item.clone())
+                       .collect::<Vec<FileInfo>>();
+        diff.sort_by(|a, b| a.path.cmp(&b.path));
+
+        if !diff.is_empty() {
+            println!("\nFiles that have been modified:");
+            for file in &diff {
+                println!("  {}", file);
+            }
+        }
     }
 }

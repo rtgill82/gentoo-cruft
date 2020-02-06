@@ -94,7 +94,14 @@ impl<'a> FsReader<'a> {
             }
         }
 
-        Ok(FileInfo { ftype, path, md5, mtime, executable })
+        Ok(FileInfo {
+            ftype,
+            path,
+            md5,
+            mtime,
+            executable,
+            ..Default::default()
+        })
     }
 
     fn spawn_stat(&self, entry: PathBuf) {

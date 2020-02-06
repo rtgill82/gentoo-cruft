@@ -87,6 +87,6 @@ impl<'a> PkgReader<'a> {
             }
         };
 
-        FileInfo { ftype, path, md5, mtime, executable: false }
+        FileInfo { ftype, path, md5, mtime, ..Default::default() }
     }
 }
