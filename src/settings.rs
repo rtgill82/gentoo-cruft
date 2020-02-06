@@ -3,6 +3,7 @@ extern crate config;
 
 use std::collections::HashSet;
 use std::path::PathBuf;
+use std::env;
 
 use clap::ArgMatches;
 use config::{Config,ConfigError,File};
@@ -33,12 +34,14 @@ impl Settings {
         let args = parse_args();
         let mut conf = Config::new();
 
+        conf.set_default("pkg_dir", "/var/db/pkg")?;
         conf.set_default("md5", false)?;
         conf.set_default("mtime", false)?;
         conf.set_default("verbose", false)?;
         conf.set_default::<Option<Vec<String>>>("ignore_paths", None)?;
         conf.set_default::<Option<Vec<String>>>("ignore_files", None)?;
-        conf.merge(File::with_name("config/cruft.yaml"))?;
+        merge_file(&mut conf, "/etc/cruft.yaml")?;
+        merge_file(&mut conf, &home_config())?;
         Self::merge_args(conf.try_into()?, &args)
     }
 
@@ -101,6 +104,18 @@ impl Settings {
 
         Ok(s)
     }
+}
+
+fn home_config() -> String {
+    let home = env::var("HOME").unwrap();
+    format!("{}/.config/cruft.yaml", home)
+}
+
+fn merge_file(conf: &mut Config, path: &str) -> Result<(), ConfigError> {
+    let file = File::with_name(path)
+                    .required(false);
+    conf.merge(file)?;
+    Ok(())
 }
 
 fn parse_args() -> ArgMatches<'static> {
