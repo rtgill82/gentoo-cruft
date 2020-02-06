@@ -2,6 +2,7 @@
 name = "cruft"
 version = "1.0.0"
 authors = ["Robert Gill <locke@sdf.org>"]
+description = "Find files not recorded in the Gentoo package database"
 edition = "2018"
 license = "MIT"
 
