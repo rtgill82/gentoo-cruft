@@ -18,16 +18,6 @@ macro_rules! unwrap_array_arg {
     }
 }
 
-macro_rules! unwrap_bool_arg {
-    ($e:expr) => {
-        match $e.unwrap_or("n") {
-            "y" => true,
-            "n" => false,
-            _   => false
-        }
-    }
-}
-
 #[derive(Debug,Default,Deserialize)]
 pub struct Settings {
     pkg_dir: String,
@@ -78,11 +68,11 @@ impl Settings {
 
     fn merge_args(mut s: Self, args: &ArgMatches) -> Result<Self,ConfigError> {
         if args.occurrences_of("md5") > 0 {
-            s.md5 = unwrap_bool_arg!(args.value_of("md5"));
+            s.md5 = !s.md5;
         }
 
         if args.occurrences_of("mtime") > 0 {
-            s.mtime = unwrap_bool_arg!(args.value_of("mtime"));
+            s.mtime = !s.mtime;
         }
 
         if args.occurrences_of("verbose") > 0 {
@@ -127,15 +117,11 @@ fn parse_args() -> ArgMatches<'static> {
         .arg(clap::Arg::with_name("md5")
              .long("md5")
              .short("m")
-             .takes_value(true)
-             .possible_values(&["y", "n"])
-             .help("Calculate and compare MD5 sums"))
+             .help("Calculate and compare MD5 sums (inverses config setting)"))
         .arg(clap::Arg::with_name("mtime")
              .long("mtime")
              .short("t")
-             .takes_value(true)
-             .possible_values(&["y", "n"])
-             .help("Compare file modification times"))
+             .help("Compare file modification times (inverses config setting)"))
         .arg(clap::Arg::with_name("ignore_files")
              .long("ignore-files")
              .short("f")
