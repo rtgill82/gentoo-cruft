@@ -1,10 +1,14 @@
 [package]
-name = "cruft"
+name = "gentoo-cruft"
 version = "1.0.0"
 authors = ["Robert Gill <locke@sdf.org>"]
 description = "Find files not recorded in the Gentoo package database"
 edition = "2018"
 license = "MIT"
+
+[[bin]]
+name = "cruft"
+path = "src/main.rs"
 
 [profile.release]
 codegen-units = 1
@@ -13,11 +17,9 @@ panic = 'abort'
 
 [dependencies]
 clap = "2.33"
+fs-tree = "0.1"
 md5 = "0.7"
 threadpool = "1.7"
-
-[dependencies.fs_tree]
-path = "../fs_tree"
 
 [dependencies.config]
 version = "0.10"
