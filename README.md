@@ -1,11 +1,11 @@
 # gentoo-cruft
 
-_Find files not recorded in the Gentoo package database._
+_Find files that are not recorded in the Gentoo package database._
 
 Scans the file system and compares it to the `CONTENTS` catalogs in the Gentoo
 installed package database. Files that are not listed in the package database
-are listed. MD5 sums and mtimes can also be calculated in order to list files
-that have been modified since installation.
+are displayed. MD5 sums and mtimes can also be calculated in order to list
+files that have been modified since installation.
 
 ## Usage
 
@@ -19,8 +19,8 @@ USAGE:
 
 FLAGS:
     -h, --help       Prints help information
-    -m, --md5        Calculate and compare MD5 sums (inverses config setting)
-    -t, --mtime      Compare file modification times (inverses config setting)
+    -m, --md5        Calculate and compare MD5 sums (inverts config setting)
+    -t, --mtime      Compare file modification times (inverts config setting)
     -V, --version    Prints version information
     -v, --verbose    Display warnings on STDERR
 
