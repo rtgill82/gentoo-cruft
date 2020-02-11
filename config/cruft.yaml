@@ -25,5 +25,6 @@ ignore_paths:
         - /var/db/repos/gentoo
 
 # Specifically ignore the following files when scanning the file system.
-#ignore_files:
+ignore_files:
+        - /
 #        - /home/user/ignore_me.txt
