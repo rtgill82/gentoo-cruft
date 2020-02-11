@@ -6,8 +6,9 @@ description = "Find files not recorded in the Gentoo package database"
 repository = "https://github.com/xelkarin/gentoo-cruft"
 edition = "2018"
 license = "MIT"
-categories = ["command-line-utilities", "filesystem", "linux"]
+categories = ["command-line-utilities", "filesystem"]
 keywords = ["cli", "filesystem", "gentoo", "linux"]
+readme = "README.md"
 
 [[bin]]
 name = "cruft"
