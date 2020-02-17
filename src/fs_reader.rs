@@ -34,7 +34,7 @@ macro_rules! systime_to_unix {
 impl<'a> FsReader<'a> {
     pub fn new(settings: &'a Settings) -> Result<FsReader, Error> {
         let pool = threadpool::Builder::new().build();
-        let fs_tree = Self::build_fstree(settings)?;
+        let fs_tree = Self::build_fstree(settings);
 
         Ok(FsReader {
             pool: pool,
@@ -127,7 +127,7 @@ impl<'a> FsReader<'a> {
         });
     }
 
-    fn build_fstree(settings: &Settings) -> Result<FsTree, Error> {
+    fn build_fstree(settings: &Settings) -> FsTree {
         let mut builder = FsTreeBuilder::new("/");
         if let Some(files) = settings.ignore_files() {
             builder.set_ignore_files(files);

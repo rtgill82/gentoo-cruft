@@ -11,7 +11,7 @@ impl Catalogs {
     pub fn new(pkg_dir: &str) -> Result<Catalogs, Error> {
         let fs_tree = FsTreeBuilder::new(pkg_dir)
             .max_depth(2)
-            .min_depth(2).build()?
+            .min_depth(2).build()
             .into_iter();
         Ok(Catalogs { fs_tree })
     }
