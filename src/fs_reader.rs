@@ -4,6 +4,7 @@ extern crate threadpool;
 use std::collections::HashSet;
 use std::{fs,fs::File};
 use std::{io,io::Read};
+use std::os::unix::fs::FileTypeExt;
 use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 use std::sync::{Arc,Mutex};
@@ -63,8 +64,8 @@ impl<'a> FsReader<'a> {
     }
 
     pub fn stat(filepath: &PathBuf, read_md5: bool, read_mtime: bool) -> Result<FileInfo, io::Error> {
-        let ftype: FileType;
-        let path: String;
+        let path = String::from(filepath.to_str().unwrap());
+        let mut ftype: FileType = FileType::Obj;
         let mut md5: Option<String> = None;
         let mut mtime: Option<u64> = None;
         let mut executable: bool = false;
@@ -72,17 +73,13 @@ impl<'a> FsReader<'a> {
         let stat = fs::symlink_metadata(&filepath)?;
         if stat.file_type().is_symlink() {
             ftype = FileType::Sym;
-            path = String::from(filepath.to_str().unwrap());
-
             if read_mtime {
                 mtime = Some(systime_to_unix!(stat.modified()));
             }
         } else if stat.file_type().is_dir() {
             ftype = FileType::Dir;
-            path = String::from(filepath.to_str().unwrap());
-        } else {
-            ftype = FileType::Obj;
-            path = String::from(filepath.to_str().unwrap());
+        } else if !stat.file_type().is_fifo()
+               && !stat.file_type().is_socket() {
             executable = stat.mode() & 0o111 != 0;
 
             if read_md5 {
