@@ -21,9 +21,9 @@ panic = 'abort'
 
 [dependencies]
 clap = "2.33"
-fs-tree = "0.1"
 md5 = "0.7"
 threadpool = "1.7"
+walkdir = "2.3"
 
 [dependencies.config]
 version = "0.10"

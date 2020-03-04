@@ -1,4 +1,3 @@
-extern crate fs_tree;
 extern crate serde;
 
 use std::collections::HashSet;
@@ -26,7 +25,7 @@ fn main() {
     let pkg_reader = PkgReader::new(&settings);
     let catalog = pkg_reader.read();
 
-    let mut fs_reader = FsReader::new(&settings).unwrap();
+    let mut fs_reader = FsReader::new(&settings);
     let files = fs_reader.read();
 
     let mut diff = files.difference(&catalog)

@@ -11,15 +11,15 @@ use std::sync::{Arc,Mutex};
 use std::time::SystemTime;
 use std::mem;
 
-use fs_tree::{Error,FsTree,FsTreeBuilder};
 use threadpool::ThreadPool;
+use walkdir::DirEntry;
+use walkdir::WalkDir;
 
 use crate::file_info::{FileInfo,FileType};
 use crate::settings::Settings;
 
 pub struct FsReader<'a> {
     pool: ThreadPool,
-    fs_tree: FsTree,
     results: Arc<Mutex<HashSet<FileInfo>>>,
     settings: &'a Settings
 }
@@ -33,25 +33,35 @@ macro_rules! systime_to_unix {
 }
 
 impl<'a> FsReader<'a> {
-    pub fn new(settings: &'a Settings) -> Result<FsReader, Error> {
+    pub fn new(settings: &'a Settings) -> FsReader {
         let pool = threadpool::Builder::new().build();
-        let fs_tree = Self::build_fstree(settings);
-
-        Ok(FsReader {
+        FsReader {
             pool: pool,
-            fs_tree: fs_tree,
             results: Arc::new(Mutex::new(HashSet::new())),
             settings: settings
-        })
+        }
     }
 
     pub fn read(&mut self) -> HashSet<FileInfo> {
-        for result in &self.fs_tree {
+        let walkdir = WalkDir::new("/");
+        let iter = walkdir.into_iter().filter_entry(|entry| {
+            Self::is_ignored(self, entry)
+        });
+
+        for result in iter {
             match result {
-                Ok(entry) => Self::spawn_stat(self, entry),
+                Ok(entry) => {
+                    if let Some(ignore_files) = self.settings.ignore_files() {
+                        let pathbuf = entry.path().to_path_buf();
+                        if ignore_files.contains(&pathbuf) {
+                            continue;
+                        }
+                    }
+                    Self::spawn_stat(self, entry.path().to_path_buf());
+                },
                 Err(err) => {
                     if self.settings.verbose() {
-                        eprintln!("Error accessing path {}", err);
+                        eprintln!("Error accessing path: {}", err);
                     }
                 }
             }
@@ -101,6 +111,20 @@ impl<'a> FsReader<'a> {
         })
     }
 
+    fn is_ignored(&self, entry: &DirEntry) -> bool {
+        let mut rv = true;
+        if let Some(ignore_files) = self.settings.ignore_files() {
+            if !entry.file_type().is_dir() {
+                rv &= !ignore_files.contains(&entry.path().to_path_buf());
+            }
+        }
+
+        if let Some(ignore_paths) = self.settings.ignore_paths() {
+            rv &= !ignore_paths.contains(&entry.path().to_path_buf());
+        }
+        rv
+    }
+
     fn spawn_stat(&self, entry: PathBuf) {
         let results = self.results.clone();
         let read_md5 = self.settings.read_md5();
@@ -122,19 +146,6 @@ impl<'a> FsReader<'a> {
                 }
             }
         });
-    }
-
-    fn build_fstree(settings: &Settings) -> FsTree {
-        let mut builder = FsTreeBuilder::new("/");
-        if let Some(files) = settings.ignore_files() {
-            builder.set_ignore_files(files);
-        }
-
-        if let Some(paths) = settings.ignore_paths() {
-            builder.set_ignore_paths(paths);
-        }
-
-        builder.build()
     }
 }
 
