@@ -1,6 +1,6 @@
 [package]
 name = "gentoo-cruft"
-version = "1.0.2"
+version = "1.0.3"
 authors = ["Robert Gill <locke@sdf.org>"]
 description = "Find files that are not recorded in the Gentoo package database"
 repository = "https://github.com/xelkarin/gentoo-cruft"

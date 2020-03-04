@@ -63,7 +63,7 @@ dependencies = [
 
 [[package]]
 name = "gentoo-cruft"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "config 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
