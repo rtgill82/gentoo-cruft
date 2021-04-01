@@ -1,9 +1,9 @@
 [package]
 name = "gentoo-cruft"
 version = "1.0.3"
-authors = ["Robert Gill <locke@sdf.org>"]
+authors = ["Robert Gill <rtgill82@gmail.com>"]
 description = "Find files that are not recorded in the Gentoo package database"
-repository = "https://github.com/xelkarin/gentoo-cruft"
+repository = "https://github.com/rtgill82/gentoo-cruft"
 edition = "2018"
 license = "MIT"
 categories = ["command-line-utilities", "filesystem"]

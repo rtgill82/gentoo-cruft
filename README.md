@@ -35,4 +35,4 @@ OPTIONS:
 The configuration files `/etc/cruft.yaml` and `$HOME/.config/cruft.yaml` will
 be read if they are available. An example is provided in the crate or in the
 repository at:
-https://github.com/xelkarin/gentoo-cruft/blob/master/config/cruft.yaml
+https://github.com/rtgill82/gentoo-cruft/blob/master/config/cruft.yaml
