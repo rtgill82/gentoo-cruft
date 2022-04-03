@@ -27,4 +27,4 @@ ignore_paths:
 # Specifically ignore the following files when scanning the file system.
 ignore_files:
         - /
-#        - /home/user/ignore_me.txt
+#        - /var/log/ignore_me.log

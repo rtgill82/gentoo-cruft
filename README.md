@@ -25,8 +25,8 @@ FLAGS:
     -v, --verbose    Display warnings on STDERR
 
 OPTIONS:
-    -f, --ignore-files <file>...    Files to ignore when traversing the file system
-    -p, --ignore-paths <path>...    Paths to ignore when traversing the file system
+    -f, --ignore-files <file>...    Files to ignore when traversing the directory tree
+    -p, --ignore-paths <path>...    Paths to ignore when traversing the directory tree
     -d, --pkg-dir <path>            Path to the Gentoo package database [default: /var/db/pkg]
 ```
 
