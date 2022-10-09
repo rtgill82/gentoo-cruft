@@ -20,13 +20,13 @@ lto = true
 panic = 'abort'
 
 [dependencies]
-clap = "2.33"
+clap = "3.2"
 md5 = "0.7"
-threadpool = "1.7"
+threadpool = "1.8"
 walkdir = "2.3"
 
 [dependencies.config]
-version = "0.10"
+version = "0.13"
 default-features = false
 features = ["yaml"]
 

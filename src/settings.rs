@@ -32,17 +32,18 @@ pub struct Settings {
 impl Settings {
     pub fn new() -> Result<Self,ConfigError> {
         let args = parse_args();
-        let mut conf = Config::new();
+        let builder = Config::builder()
+            .set_default("pkg_dir", "/var/db/pkg")?
+            .set_default("md5", false)?
+            .set_default("mtime", false)?
+            .set_default("verbose", false)?
+            .set_default::<&str, Option<Vec<String>>>("ignore_paths", None)?
+            .set_default::<&str, Option<Vec<String>>>("ignore_files", None)?
+            .add_source(File::with_name("/etc/cruft.yaml").required(false))
+            .add_source(File::with_name(&home_config()).required(false));
 
-        conf.set_default("pkg_dir", "/var/db/pkg")?;
-        conf.set_default("md5", false)?;
-        conf.set_default("mtime", false)?;
-        conf.set_default("verbose", false)?;
-        conf.set_default::<Option<Vec<String>>>("ignore_paths", None)?;
-        conf.set_default::<Option<Vec<String>>>("ignore_files", None)?;
-        merge_file(&mut conf, "/etc/cruft.yaml")?;
-        merge_file(&mut conf, &home_config())?;
-        Self::merge_args(conf.try_into()?, &args)
+        let conf = builder.build()?;
+        Self::merge_args(conf.try_deserialize()?, &args)
     }
 
     pub fn pkg_dir(&self) -> &str {
@@ -111,49 +112,42 @@ fn home_config() -> String {
     format!("{}/.config/cruft.yaml", home)
 }
 
-fn merge_file(conf: &mut Config, path: &str) -> Result<(), ConfigError> {
-    let file = File::with_name(path)
-                    .required(false);
-    conf.merge(file)?;
-    Ok(())
-}
-
-fn parse_args() -> ArgMatches<'static> {
+fn parse_args() -> ArgMatches {
     clap::App::new(NAME)
         .version(VERSION)
         .author(AUTHOR)
         .arg(clap::Arg::with_name("pkg_dir")
              .long("pkg-dir")
-             .short("d")
+             .short('d')
              .takes_value(true)
              .default_value("/var/db/pkg")
              .value_name("path")
              .help("Path to the Gentoo package database"))
         .arg(clap::Arg::with_name("md5")
              .long("md5")
-             .short("m")
+             .short('m')
              .help("Calculate and compare MD5 sums (inverts config setting)"))
         .arg(clap::Arg::with_name("mtime")
              .long("mtime")
-             .short("t")
+             .short('t')
              .help("Compare file modification times (inverts config setting)"))
         .arg(clap::Arg::with_name("ignore_files")
              .long("ignore-files")
-             .short("f")
+             .short('f')
              .takes_value(true)
              .multiple(true)
              .value_names(&["file"])
              .help("Files to ignore when traversing the directory tree"))
         .arg(clap::Arg::with_name("ignore_paths")
              .long("ignore-paths")
-             .short("p")
+             .short('p')
              .takes_value(true)
              .multiple(true)
              .value_names(&["path"])
              .help("Paths to ignore when traversing the directory tree"))
         .arg(clap::Arg::with_name("verbose")
              .long("verbose")
-             .short("v")
+             .short('v')
              .help("Display warnings on STDERR"))
         .get_matches()
 }
