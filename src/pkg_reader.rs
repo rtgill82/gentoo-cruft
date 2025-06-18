@@ -18,7 +18,7 @@ pub struct PkgReader<'a> {
 }
 
 impl<'a> PkgReader<'a> {
-    pub fn new(settings: &'a Settings) -> PkgReader {
+    pub fn new(settings: &'a Settings) -> PkgReader<'a> {
         let pool = threadpool::Builder::new().build();
         PkgReader { pool, settings }
     }

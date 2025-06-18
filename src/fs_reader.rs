@@ -33,7 +33,7 @@ macro_rules! systime_to_unix {
 }
 
 impl<'a> FsReader<'a> {
-    pub fn new(settings: &'a Settings) -> FsReader {
+    pub fn new(settings: &'a Settings) -> FsReader<'a> {
         let pool = threadpool::Builder::new().build();
         FsReader {
             pool: pool,
