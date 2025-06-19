@@ -4,6 +4,7 @@ extern crate serde;
 
 use std::collections::HashSet;
 use std::process::exit;
+use std::sync::Arc;
 
 mod catalogs;
 mod file_info;
@@ -23,11 +24,11 @@ fn main() {
         exit(1);
     }
 
-    let settings = settings.unwrap();
-    let pkg_reader = PkgReader::new(&settings);
+    let settings = Arc::new(settings.unwrap());
+    let pkg_reader = PkgReader::new(settings.clone());
     let catalog = pkg_reader.read();
 
-    let mut fs_reader = FsReader::new(&settings);
+    let mut fs_reader = FsReader::new(settings.clone());
     let files = fs_reader.read();
 
     let mut diff = files.difference(&catalog)

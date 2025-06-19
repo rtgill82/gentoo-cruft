@@ -18,10 +18,10 @@ use walkdir::WalkDir;
 use crate::file_info::{FileInfo,FileType};
 use crate::settings::Settings;
 
-pub struct FsReader<'a> {
+pub struct FsReader {
     pool: ThreadPool,
     results: Arc<Mutex<HashSet<FileInfo>>>,
-    settings: &'a Settings
+    settings: Arc<Settings>
 }
 
 macro_rules! systime_to_unix {
@@ -32,8 +32,8 @@ macro_rules! systime_to_unix {
     }
 }
 
-impl<'a> FsReader<'a> {
-    pub fn new(settings: &'a Settings) -> FsReader<'a> {
+impl FsReader {
+    pub fn new(settings: Arc<Settings>) -> FsReader {
         let pool = threadpool::Builder::new().build();
         FsReader {
             pool: pool,
@@ -73,44 +73,6 @@ impl<'a> FsReader<'a> {
         Arc::try_unwrap(results).unwrap().into_inner().unwrap()
     }
 
-    pub fn stat(filepath: &PathBuf, read_md5: bool, read_mtime: bool) -> Result<FileInfo, io::Error> {
-        let path = String::from(filepath.to_str().unwrap());
-        let mut ftype: FileType = FileType::Obj;
-        let mut md5: Option<String> = None;
-        let mut mtime: Option<u64> = None;
-        let mut executable: bool = false;
-
-        let stat = fs::symlink_metadata(&filepath)?;
-        if stat.file_type().is_symlink() {
-            ftype = FileType::Sym;
-            if read_mtime {
-                mtime = Some(systime_to_unix!(stat.modified()));
-            }
-        } else if stat.file_type().is_dir() {
-            ftype = FileType::Dir;
-        } else if !stat.file_type().is_fifo()
-               && !stat.file_type().is_socket() {
-            executable = stat.mode() & 0o111 != 0;
-
-            if read_md5 {
-                md5 = Some(calc_md5(&filepath)?);
-            }
-
-            if read_mtime {
-                mtime = Some(systime_to_unix!(stat.modified()));
-            }
-        }
-
-        Ok(FileInfo {
-            ftype,
-            path,
-            md5,
-            mtime,
-            executable,
-            ..Default::default()
-        })
-    }
-
     fn is_ignored(&self, entry: &DirEntry) -> bool {
         let mut rv = true;
         if let Some(ignore_files) = self.settings.ignore_files() {
@@ -127,15 +89,13 @@ impl<'a> FsReader<'a> {
 
     fn spawn_stat(&self, entry: PathBuf) {
         let results = self.results.clone();
-        let read_md5 = self.settings.read_md5();
-        let read_mtime = self.settings.read_mtime();
-        let verbose = self.settings.verbose();
+        let settings = self.settings.clone();
         self.pool.execute(move || {
             let entry = entry;
-            match Self::stat(&entry, read_md5, read_mtime) {
+            match Self::stat(&entry, &settings) {
                 Err(err) => {
                     let path = entry.to_string_lossy();
-                    if verbose {
+                    if settings.verbose() {
                         eprintln!("Error reading file {}: {}", path, err);
                     }
                 },
@@ -146,6 +106,46 @@ impl<'a> FsReader<'a> {
                 }
             }
         });
+    }
+
+    fn stat(filepath: &PathBuf, settings: &Settings)
+        -> Result<FileInfo, io::Error>
+    {
+        let path = String::from(filepath.to_str().unwrap());
+        let mut ftype: FileType = FileType::Obj;
+        let mut md5: Option<String> = None;
+        let mut mtime: Option<u64> = None;
+        let mut executable: bool = false;
+
+        let stat = fs::symlink_metadata(&filepath)?;
+        if stat.file_type().is_symlink() {
+            ftype = FileType::Sym;
+            if settings.read_mtime() {
+                mtime = Some(systime_to_unix!(stat.modified()));
+            }
+        } else if stat.file_type().is_dir() {
+            ftype = FileType::Dir;
+        } else if !stat.file_type().is_fifo()
+               && !stat.file_type().is_socket() {
+            executable = stat.mode() & 0o111 != 0;
+
+            if settings.read_md5() {
+                md5 = Some(calc_md5(&filepath)?);
+            }
+
+            if settings.read_mtime() {
+                mtime = Some(systime_to_unix!(stat.modified()));
+            }
+        }
+
+        Ok(FileInfo {
+            ftype,
+            path,
+            md5,
+            mtime,
+            executable,
+            ..Default::default()
+        })
     }
 }
 

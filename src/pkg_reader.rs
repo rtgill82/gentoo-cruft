@@ -12,13 +12,13 @@ use crate::catalogs::Catalogs;
 use crate::file_info::{FileInfo,FileType};
 use crate::settings::Settings;
 
-pub struct PkgReader<'a> {
+pub struct PkgReader {
     pool: ThreadPool,
-    settings: &'a Settings
+    settings: Arc<Settings>
 }
 
-impl<'a> PkgReader<'a> {
-    pub fn new(settings: &'a Settings) -> PkgReader<'a> {
+impl PkgReader {
+    pub fn new(settings: Arc<Settings>) -> PkgReader {
         let pool = threadpool::Builder::new().build();
         PkgReader { pool, settings }
     }
@@ -28,15 +28,14 @@ impl<'a> PkgReader<'a> {
         for catalog in Catalogs::new(self.settings.pkg_dir()).unwrap() {
             if let Ok(pathbuf) = catalog {
                 let set = set.clone();
-                let read_md5 = self.settings.read_md5();
-                let read_mtime = self.settings.read_mtime();
+                let settings = self.settings.clone();
                 self.pool.execute(move || {
                     let file = File::open(pathbuf).unwrap();
                     let reader = BufReader::new(file);
                     for line in reader.lines() {
                         let line = line.unwrap();
                         let mut set = set.lock().unwrap();
-                        set.insert(Self::parse_entry(&line, read_md5, read_mtime));
+                        set.insert(Self::parse_entry(&line, &settings));
                     }
                 });
             }
@@ -45,7 +44,7 @@ impl<'a> PkgReader<'a> {
         Arc::try_unwrap(set).unwrap().into_inner().unwrap()
     }
 
-    fn parse_entry(s: &str, read_md5: bool, read_mtime: bool) -> FileInfo {
+    fn parse_entry(s: &str, settings: &Settings) -> FileInfo {
         let ftype: FileType;
         let path: String;
         let mut md5: Option<String> = None;
@@ -58,11 +57,11 @@ impl<'a> PkgReader<'a> {
                 let len = fields.len();
                 path = fields[1..=(len - 3)].join(" ");
 
-                if read_md5 {
+                if settings.read_md5() {
                     md5 = Some(String::from(fields[len - 2]));
                 }
 
-                if read_mtime {
+                if settings.read_mtime() {
                     mtime = Some(fields[len - 1].parse().unwrap());
                 }
             },
@@ -81,7 +80,7 @@ impl<'a> PkgReader<'a> {
                 path = split[1..=(len - 1)].join(" ");
 
                 let len = fields.len();
-                if read_mtime {
+                if settings.read_mtime() {
                     mtime = Some(fields[len - 1].parse().unwrap());
                 }
             }
