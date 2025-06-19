@@ -1,23 +1,11 @@
-extern crate clap;
 extern crate config;
 
-use std::collections::HashSet;
 use std::path::PathBuf;
 use std::env;
 
-use clap::ArgMatches;
+use clap::{Arg,ArgAction,ArgMatches};
 use config::{Config,ConfigError,File};
 use serde::Deserialize;
-
-const NAME: &'static str = env!("CARGO_PKG_NAME");
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-const AUTHOR: &'static str = env!("CARGO_PKG_AUTHORS");
-
-macro_rules! unwrap_array_arg {
-    ($e:expr) => {
-        $e.unwrap().map(|s| PathBuf::from(s)).collect::<HashSet<PathBuf>>()
-    }
-}
 
 #[derive(Debug,Default,Deserialize)]
 pub struct Settings {
@@ -71,36 +59,30 @@ impl Settings {
     }
 
     fn merge_args(mut s: Self, args: &ArgMatches) -> Result<Self,ConfigError> {
-        if args.occurrences_of("md5") > 0 {
+        if args.get_flag("md5") {
             s.md5 = !s.md5;
         }
 
-        if args.occurrences_of("mtime") > 0 {
+        if args.get_flag("mtime") {
             s.mtime = !s.mtime;
         }
 
-        if args.occurrences_of("verbose") > 0 {
+        if args.get_flag("verbose") {
             s.verbose = true;
         }
 
-        if args.occurrences_of("pkg_dir") > 0 {
-            s.pkg_dir = args.value_of("pkg_dir").unwrap().to_string();
+        if let Some(pkg_dir) = args.get_one::<String>("pkg-dir") {
+            s.pkg_dir = pkg_dir.clone();
         }
 
-        if args.is_present("ignore_paths") {
-            let mut paths = unwrap_array_arg!(args.values_of("ignore_paths"));
-            if let Some(ignore_paths) = s.ignore_paths {
-                paths.extend(ignore_paths);
-            }
-            s.ignore_paths = Some(paths.into_iter().collect());
+        if let Some(paths) = args.get_many("ignore-path") {
+            s.ignore_paths = Some(paths.map(|p: &String| { PathBuf::from(p) })
+                .collect());
         }
 
-        if args.is_present("ignore_files") {
-            let mut files = unwrap_array_arg!(args.values_of("ignore_files"));
-            if let Some(ignore_files) = s.ignore_files {
-                files.extend(ignore_files);
-            }
-            s.ignore_files = Some(files.into_iter().collect());
+        if let Some(files) = args.get_many("ignore-file") {
+            s.ignore_files = Some(files.map(|f: &String| { PathBuf::from(f) })
+                .collect());
         }
 
         Ok(s)
@@ -113,41 +95,26 @@ fn home_config() -> String {
 }
 
 fn parse_args() -> ArgMatches {
-    clap::App::new(NAME)
-        .version(VERSION)
-        .author(AUTHOR)
-        .arg(clap::Arg::with_name("pkg_dir")
-             .long("pkg-dir")
-             .short('d')
-             .takes_value(true)
-             .default_value("/var/db/pkg")
-             .value_name("path")
-             .help("Path to the Gentoo package database"))
-        .arg(clap::Arg::with_name("md5")
-             .long("md5")
-             .short('m')
-             .help("Calculate and compare MD5 sums (inverts config setting)"))
-        .arg(clap::Arg::with_name("mtime")
-             .long("mtime")
-             .short('t')
-             .help("Compare file modification times (inverts config setting)"))
-        .arg(clap::Arg::with_name("ignore_files")
-             .long("ignore-files")
-             .short('f')
-             .takes_value(true)
-             .multiple(true)
-             .value_names(&["file"])
-             .help("Files to ignore when traversing the directory tree"))
-        .arg(clap::Arg::with_name("ignore_paths")
-             .long("ignore-paths")
-             .short('p')
-             .takes_value(true)
-             .multiple(true)
-             .value_names(&["path"])
-             .help("Paths to ignore when traversing the directory tree"))
-        .arg(clap::Arg::with_name("verbose")
-             .long("verbose")
-             .short('v')
-             .help("Display warnings on STDERR"))
+    command!()
+        .arg(Arg::new("pkg-dir").short('d').long("pkg-dir")
+            .help("Path to the Gentoo package database")
+            .value_parser(value_parser!(String))
+            .value_name("PATH")
+            .action(ArgAction::Set)
+            .default_value("/var/db/pkg"))
+        .arg(arg!(-m --md5   "Calculate and compare MD5 sums (inverts config setting)")
+            .action(ArgAction::SetTrue))
+        .arg(arg!(-t --mtime "Compare file modification times (inverts config setting)")
+            .action(ArgAction::SetTrue))
+        .arg(Arg::new("ignore-file").short('f').long("ignore-file")
+            .help("Add file to ignore when traversing the directory tree")
+            .action(ArgAction::Append)
+            .value_name("FILE"))
+        .arg(Arg::new("ignore-path").short('p').long("ignore-path")
+            .help("Add path to ignore when traversing the directory tree")
+            .action(ArgAction::Append)
+            .value_name("PATH"))
+        .arg(arg!(-v --verbose "Display warnings on STDERR")
+            .action(ArgAction::SetTrue))
         .get_matches()
 }

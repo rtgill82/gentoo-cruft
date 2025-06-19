@@ -1,3 +1,5 @@
+#[macro_use]
+extern crate clap;
 extern crate serde;
 
 use std::collections::HashSet;
