@@ -15,14 +15,19 @@ ignore_paths:
         - /dev
         - /etc/ssl/certs
         - /home
+        - /media
+        - /mnt
         - /proc
         - /root
         - /run
         - /sys
+        - /tmp
+        - /usr/local
         - /usr/src
         - /var/cache/distfiles
         - /var/db/pkg
         - /var/db/repos/gentoo
+        - /var/tmp
 
 # Specifically ignore the following files when scanning the file system.
 ignore_files:
