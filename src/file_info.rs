@@ -1,11 +1,12 @@
 use std::cmp::PartialEq;
 use std::{fmt,fmt::Display};
 use std::hash::{Hash,Hasher};
+use std::path::PathBuf;
 
 #[derive(Clone,Debug,Default,Eq)]
 pub struct FileInfo {
     pub ftype: FileType,
-    pub path: String,
+    pub path: PathBuf,
     pub md5: Option<String>,
     pub mtime: Option<u64>,
     pub executable: bool,
@@ -15,7 +16,7 @@ pub struct FileInfo {
 impl Display for FileInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let exec = if self.executable { "*" } else { "" };
-        write!(f, "{}{}", exec, self.path)
+        write!(f, "{}{}", exec, self.path.to_string_lossy())
     }
 }
 

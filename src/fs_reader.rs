@@ -111,7 +111,6 @@ impl FsReader {
     fn stat(filepath: &PathBuf, settings: &Settings)
         -> Result<FileInfo, io::Error>
     {
-        let path = String::from(filepath.to_str().unwrap());
         let mut ftype: FileType = FileType::Obj;
         let mut md5: Option<String> = None;
         let mut mtime: Option<u64> = None;
@@ -139,11 +138,11 @@ impl FsReader {
         }
 
         Ok(FileInfo {
-            ftype,
-            path,
-            md5,
-            mtime,
-            executable,
+            ftype: ftype,
+            path: filepath.clone(),
+            md5: md5,
+            mtime: mtime,
+            executable: executable,
             ..Default::default()
         })
     }

@@ -6,11 +6,13 @@ use std::collections::HashSet;
 use std::process::exit;
 use std::sync::Arc;
 
-mod catalogs;
+mod catalog;
 mod file_info;
 mod fs_reader;
+mod package;
 mod pkg_reader;
 mod settings;
+mod symlink;
 
 use file_info::FileInfo;
 use fs_reader::FsReader;
@@ -26,12 +28,19 @@ fn main() {
 
     let settings = Arc::new(settings.unwrap());
     let pkg_reader = PkgReader::new(settings.clone());
-    let catalog = pkg_reader.read();
+    let packages = pkg_reader.read();
+
+    let mut package_files = HashSet::<FileInfo>::new();
+    for package in packages {
+        for file in package.files() {
+            package_files.insert(file.clone());
+        }
+    }
 
     let mut fs_reader = FsReader::new(settings.clone());
-    let files = fs_reader.read();
+    let fs_files = fs_reader.read();
 
-    let mut diff = files.difference(&catalog)
+    let mut diff = fs_files.difference(&package_files)
                         .map(|item| item.clone())
                         .collect::<Vec<FileInfo>>();
     diff.sort_by(|a, b| a.path.cmp(&b.path));
@@ -44,24 +53,24 @@ fn main() {
     }
 
     if settings.read_md5() || settings.read_mtime() {
-        let catalog = catalog.iter()
-                             .map(|item| {
-                                 let mut item = item.clone();
-                                 item.full_hash = true;
-                                 item
-                             }).collect::<HashSet<FileInfo>>();
+        let package_files = package_files.iter()
+            .map(|item| {
+                let mut item = item.clone();
+                item.full_hash = true;
+                item
+            }).collect::<HashSet<FileInfo>>();
 
         let diff = diff.iter().map(|item| item.clone())
                        .collect::<HashSet<FileInfo>>();
 
-        let diff = files.symmetric_difference(&diff)
-                        .map(|item| {
-                            let mut item = item.clone();
-                            item.full_hash = true;
-                            item
-                        }).collect::<HashSet<FileInfo>>();
+        let diff = fs_files.symmetric_difference(&diff)
+            .map(|item| {
+                let mut item = item.clone();
+                item.full_hash = true;
+                item
+            }).collect::<HashSet<FileInfo>>();
 
-        let mut diff = diff.difference(&catalog)
+        let mut diff = diff.difference(&package_files)
                        .map(|item| item.clone())
                        .collect::<Vec<FileInfo>>();
         diff.sort_by(|a, b| a.path.cmp(&b.path));

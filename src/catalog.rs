@@ -1,25 +1,23 @@
-use std::path::PathBuf;
+use walkdir::{Error,WalkDir};
+use crate::package::Package;
 
-use walkdir::Error;
-use walkdir::WalkDir;
-
-pub struct Catalogs {
+pub struct Catalog {
     walkdir: walkdir::IntoIter
 }
 
-impl Catalogs {
-    pub fn new(pkg_dir: &str) -> Result<Catalogs, Error> {
+impl Catalog {
+    pub fn new(pkg_dir: &str) -> Result<Catalog, Error> {
         let walkdir = WalkDir::new(pkg_dir)
             .max_depth(2)
             .min_depth(2)
             .into_iter();
 
-        Ok(Catalogs { walkdir })
+        Ok(Catalog { walkdir })
     }
 }
 
-impl Iterator for Catalogs {
-    type Item = Result<PathBuf, Error>;
+impl Iterator for Catalog {
+    type Item = Result<Package, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -30,7 +28,8 @@ impl Iterator for Catalogs {
                         let mut path = entry.path().to_path_buf();
                         path.push("CONTENTS");
                         if !path.exists() { continue; }
-                        return Some(Ok(path));
+                        let package = Package::new(path);
+                        return Some(Ok(package));
                     }
                 }
             }

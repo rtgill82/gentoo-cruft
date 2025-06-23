@@ -1,17 +1,19 @@
-extern crate config;
-
 use std::path::PathBuf;
-use std::env;
+use std::{env,fs};
 
 use clap::{Arg,ArgAction,ArgMatches};
 use config::{Config,ConfigError,File};
 use serde::Deserialize;
+
+use crate::symlink::Symlink;
 
 #[derive(Debug,Default,Deserialize)]
 pub struct Settings {
     pkg_dir: String,
     ignore_files: Option<Vec<PathBuf>>,
     ignore_paths: Option<Vec<PathBuf>>,
+    links_to_usr: Option<Vec<Symlink>>,
+    split_usr: bool,
     md5: bool,
     mtime: bool,
     verbose: bool
@@ -22,6 +24,7 @@ impl Settings {
         let args = parse_args();
         let builder = Config::builder()
             .set_default("pkg_dir", "/var/db/pkg")?
+            .set_default("split_usr", false)?
             .set_default("md5", false)?
             .set_default("mtime", false)?
             .set_default("verbose", false)?
@@ -31,7 +34,10 @@ impl Settings {
             .add_source(File::with_name(&home_config()).required(false));
 
         let conf = builder.build()?;
-        Self::merge_args(conf.try_deserialize()?, &args)
+        let mut settings = Self::merge_args(conf.try_deserialize()?, &args);
+        settings.links_to_usr = read_links();
+        settings.split_usr = is_split_usr(settings.links_to_usr.is_some());
+        Ok(settings)
     }
 
     pub fn pkg_dir(&self) -> &str {
@@ -46,6 +52,14 @@ impl Settings {
         self.ignore_paths.as_ref()
     }
 
+    pub fn links_to_usr(&self) -> Option<&Vec<Symlink>> {
+        self.links_to_usr.as_ref()
+    }
+
+    pub fn is_split_usr(&self) -> bool {
+        self.split_usr
+    }
+
     pub fn read_md5(&self) -> bool {
         self.md5
     }
@@ -58,34 +72,38 @@ impl Settings {
         self.verbose
     }
 
-    fn merge_args(mut s: Self, args: &ArgMatches) -> Result<Self,ConfigError> {
+    fn merge_args(mut settings: Self, args: &ArgMatches) -> Self {
         if args.get_flag("md5") {
-            s.md5 = !s.md5;
+            settings.md5 = !settings.md5;
         }
 
         if args.get_flag("mtime") {
-            s.mtime = !s.mtime;
+            settings.mtime = !settings.mtime;
         }
 
         if args.get_flag("verbose") {
-            s.verbose = true;
+            settings.verbose = true;
         }
 
         if let Some(pkg_dir) = args.get_one::<String>("pkg-dir") {
-            s.pkg_dir = pkg_dir.clone();
+            settings.pkg_dir = pkg_dir.clone();
         }
 
         if let Some(paths) = args.get_many("ignore-path") {
-            s.ignore_paths = Some(paths.map(|p: &String| { PathBuf::from(p) })
+            settings.ignore_paths = Some(paths.map(|p: &String| {
+                PathBuf::from(p)
+            })
                 .collect());
         }
 
         if let Some(files) = args.get_many("ignore-file") {
-            s.ignore_files = Some(files.map(|f: &String| { PathBuf::from(f) })
+            settings.ignore_files = Some(files.map(|f: &String| {
+                PathBuf::from(f)
+            })
                 .collect());
         }
 
-        Ok(s)
+        settings
     }
 }
 
@@ -117,4 +135,59 @@ fn parse_args() -> ArgMatches {
         .arg(arg!(-v --verbose "Display warnings on STDERR")
             .action(ArgAction::SetTrue))
         .get_matches()
+}
+
+fn is_split_usr(links_exist: bool) -> bool {
+    does_profile_contain_split_usr() && !links_exist
+}
+
+fn does_profile_contain_split_usr() -> bool {
+    let link = fs::read_link("/etc/portage/make.profile")
+        .expect("Unable to read `/etc/portage/make.profile`");
+
+    let os_str = link.as_os_str();
+    let link_str = os_str.to_str()
+        .expect("Path contains invalid Unicode");
+    if link_str.contains("/split-usr") {
+        return true;
+    }
+
+    false
+}
+
+fn read_links() -> Option<Vec<Symlink>> {
+    let mut links: Option<Vec<Symlink>> = None;
+    for path in ["/bin", "/lib", "/lib64", "/sbin"] {
+        let link = match fs::read_link(path) {
+            Ok(link) => PathBuf::from("/").join(link),
+            Err(_) => continue
+        };
+
+        let path = PathBuf::from(path);
+        match &mut links {
+            Some(vec) => vec.push(Symlink::new(path, link)),
+            None => links = Some(Vec::from(&[Symlink::new(path, link)]))
+        }
+    }
+
+    if let Ok(link) = fs::read_link("/usr/sbin") {
+        let link = if link.components().count() == 1 {
+            Some(PathBuf::from("/usr").join(link))
+        } else if link.starts_with("/usr") {
+            Some(PathBuf::from(link))
+        } else {
+            None
+        };
+
+        if let Some(link) = link {
+            let path = PathBuf::from("/usr/sbin");
+
+            match &mut links {
+                Some(vec) => vec.push(Symlink::new(path, link)),
+                None => links = Some(Vec::from(&[Symlink::new(path, link)]))
+            }
+        }
+    }
+
+    links
 }
