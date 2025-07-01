@@ -29,13 +29,13 @@ pub struct Catalog {
 }
 
 impl Catalog {
-    pub fn new(pkg_dir: &str) -> Result<Catalog, Error> {
+    pub fn new(pkg_dir: &str) -> Catalog {
         let walkdir = WalkDir::new(pkg_dir)
             .max_depth(2)
             .min_depth(2)
             .into_iter();
 
-        Ok(Catalog { walkdir })
+        Catalog { walkdir }
     }
 }
 

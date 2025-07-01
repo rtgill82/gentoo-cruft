@@ -49,7 +49,7 @@ impl PkgReader {
 
     pub fn read(&self) -> Vec<Package> {
         let vec = Arc::new(Mutex::new(Vec::new()));
-        for package in Catalog::new(self.settings.pkg_dir()).unwrap() {
+        for package in Catalog::new(self.settings.pkg_dir()) {
             if let Ok(package) = package {
                 let vec = vec.clone();
                 let settings = self.settings.clone();
