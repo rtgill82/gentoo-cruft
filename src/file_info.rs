@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2020,2025 Robert Gill <rtgill82@gmail.com>
+// Copyright (C) 2025 Robert Gill <rtgill82@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -21,68 +21,58 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-use std::cmp::PartialEq;
-use std::{fmt,fmt::Display};
+use std::any::Any;
 use std::hash::{Hash,Hasher};
-use std::path::PathBuf;
+use std::path::Path;
 
-#[derive(Clone,Debug,Default,Eq)]
-pub struct FileInfo {
-    pub ftype: FileType,
-    pub path: PathBuf,
-    pub md5: Option<String>,
-    pub mtime: Option<u64>,
-    pub executable: bool,
-    pub full_hash: bool
+use crate::Settings;
+use crate::catalog::file::FileType;
+
+pub trait FileInfo: Any {
+    fn path(&self) -> &Path;
+    fn file_type(&self) -> FileType;
+    fn mtime(&self) -> u64;
+    fn md5(&self) -> Option<&str>;
+    fn md5_matches(&self, value: bool);
+    fn mtime_matches(&self, value: bool);
 }
 
-impl Display for FileInfo {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let exec = if self.executable { "*" } else { "" };
-        write!(f, "{}{}", exec, self.path.to_string_lossy())
-    }
-}
+impl Eq for dyn FileInfo { }
 
-impl Hash for FileInfo {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.ftype.hash(state);
-        self.path.hash(state);
+impl PartialEq for dyn FileInfo {
+    fn eq(&self, other: &dyn FileInfo) -> bool {
+        let mut rv = self.path() == other.path() &&
+            self.file_type() == other.file_type();
 
-        if self.full_hash {
-            self.md5.hash(state);
-            self.mtime.hash(state);
+        let settings = Settings::get();
+        if settings.md5() && rv == true {
+            rv &= self.md5() == other.md5();
+            self.md5_matches(rv);
+            other.md5_matches(rv);
         }
-    }
-}
 
-impl PartialEq for FileInfo {
-    fn eq(&self, other: &Self) -> bool {
-        let mut rv = self.ftype == other.ftype &&
-            self.path == other.path;
-
-        if self.full_hash {
-            rv = rv && self.md5 == other.md5 &&
-                self.mtime == other.mtime
+        if settings.mtime() && rv == true {
+            rv &= self.mtime() == other.mtime();
+            self.mtime_matches(rv);
+            other.mtime_matches(rv);
         }
 
         rv
     }
 }
 
-#[derive(Clone,Debug,Eq,Hash,PartialEq)]
-pub enum FileType { Dir, Obj, Sym }
+impl Hash for dyn FileInfo {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.path().hash(state);
+        self.file_type().hash(state);
 
-impl Default for FileType {
-    fn default() -> Self { FileType::Obj }
-}
+        let settings = Settings::get();
+        if settings.mtime() {
+            self.mtime().hash(state);
+        }
 
-impl From<&str> for FileType {
-    fn from(s: &str) -> FileType {
-        match s {
-            "obj" => FileType::Obj,
-            "dir" => FileType::Dir,
-            "sym" => FileType::Sym,
-            _     => panic!("Unexpected file type")
+        if settings.md5() {
+            self.md5().hash(state);
         }
     }
 }

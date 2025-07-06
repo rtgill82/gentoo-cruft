@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2020,2025 Robert Gill <rtgill82@gmail.com>
+// Copyright (C) 2025 Robert Gill <rtgill82@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -22,31 +22,64 @@
 //
 
 use std::path::{Path,PathBuf};
-use crate::FileInfo;
+use crate::file_info::FileInfo;
 
 #[derive(Debug)]
-pub struct Package {
-    contents_path: PathBuf,
-    files: Vec<FileInfo>,
+pub struct File {
+    path: PathBuf,
+    file_type: FileType,
+    mtime: u64,
+    md5: Option<String>
 }
 
-impl Package {
-    pub fn new(contents_path: PathBuf) -> Package {
-        Package {
-            contents_path: contents_path,
-            files: Vec::new()
+#[derive(Clone,Debug,Hash,PartialEq)]
+pub enum FileType {
+    Dir,
+    Obj,
+    Sym(PathBuf)
+}
+
+impl File {
+    pub fn new<P>(path: P, file_type: FileType, md5: String, mtime: u64)
+        -> File where P: AsRef<Path>
+    {
+        let md5 = if md5.is_empty() {
+            None
+        } else {
+            Some(md5)
+        };
+
+        File {
+            path: path.as_ref().to_path_buf(),
+            file_type: file_type,
+            mtime: mtime,
+            md5: md5
         }
     }
 
-    pub fn contents_path(&self) -> &Path {
-        &self.contents_path
+    pub fn to_file_info(self) -> Box<dyn FileInfo> {
+        Box::new(self)
+    }
+}
+
+impl FileInfo for File {
+    fn path(&self) -> &Path {
+        &self.path
     }
 
-    pub fn files(&self) -> &[FileInfo] {
-        &self.files
+    fn file_type(&self) -> FileType {
+        self.file_type.clone()
     }
 
-    pub fn add_file(&mut self, file_info: FileInfo) {
-        self.files.push(file_info);
+    fn mtime(&self) -> u64 {
+        self.mtime
     }
+
+    fn md5(&self) -> Option<&str> {
+        self.md5.as_deref()
+    }
+
+    fn md5_matches(&self, _value: bool) { }
+
+    fn mtime_matches(&self, _value: bool) { }
 }

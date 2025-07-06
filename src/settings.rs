@@ -21,14 +21,21 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
+#![allow(static_mut_refs)]
+
+use std::mem::MaybeUninit;
 use std::path::PathBuf;
-use std::{env,fs};
+use std::sync::{Arc,Once};
+use std::{env,fs,process};
 
 use clap::{Arg,ArgAction,ArgMatches};
 use config::{Config,ConfigError,File};
 use serde::Deserialize;
 
 use crate::symlink::Symlink;
+
+static START: Once = Once::new();
+static mut INSTANCE: MaybeUninit<Arc<Settings>> = MaybeUninit::uninit();
 
 #[derive(Debug,Default,Deserialize)]
 pub struct Settings {
@@ -43,7 +50,25 @@ pub struct Settings {
 }
 
 impl Settings {
-    pub fn new() -> Result<Self,ConfigError> {
+    pub fn get() -> Arc<Settings> {
+        START.call_once(|| {
+            match Self::init() {
+                Ok(settings) => {
+                    let settings = Arc::new(settings);
+                    unsafe { INSTANCE.write(settings); }
+                },
+
+                Err(err) => {
+                    eprintln!("Error reading configuration: {}", err);
+                    process::exit(1);
+                }
+            }
+        });
+
+        unsafe { (*INSTANCE.as_ptr()).clone() }
+    }
+
+    fn init() -> Result<Self,ConfigError> {
         let args = parse_args();
         let builder = Config::builder()
             .set_default("pkg_dir", "/var/db/pkg")?
@@ -83,11 +108,11 @@ impl Settings {
         self.split_usr
     }
 
-    pub fn read_md5(&self) -> bool {
+    pub fn md5(&self) -> bool {
         self.md5
     }
 
-    pub fn read_mtime(&self) -> bool {
+    pub fn mtime(&self) -> bool {
         self.mtime
     }
 

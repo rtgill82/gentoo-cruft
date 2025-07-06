@@ -21,42 +21,52 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-use walkdir::{Error,WalkDir};
-use crate::package::Package;
+pub mod file;
+mod package;
 
-pub struct Catalog {
-    walkdir: walkdir::IntoIter
-}
+use std::sync::{Arc,Mutex};
+use walkdir::WalkDir;
+
+use crate::Settings;
+use self::package::Package;
+pub use self::file::File;
+
+pub struct Catalog;
 
 impl Catalog {
-    pub fn new(pkg_dir: &str) -> Catalog {
-        let walkdir = WalkDir::new(pkg_dir)
+    pub fn read() -> Vec<File> {
+        let settings = Settings::get();
+        let pool = threadpool::Builder::new().build();
+        let walkdir = WalkDir::new(settings.pkg_dir())
             .max_depth(2)
             .min_depth(2)
             .into_iter();
 
-        Catalog { walkdir }
-    }
-}
+        let vec = Arc::new(Mutex::new(Vec::new()));
+        for result in walkdir {
+            match result {
+                Ok(entry) => {
+                    let mut path = entry.path().to_path_buf();
+                    path.push("CONTENTS");
+                    if !path.exists() { continue; }
+                    
+                    let vec = vec.clone();
+                    let settings = Settings::get();
+                    pool.execute(move || {
+                        let mut vec = vec.lock().unwrap();
+                        vec.append(&mut Package::read(path, &settings));
+                    });
+                },
 
-impl Iterator for Catalog {
-    type Item = Result<Package, Error>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if let Some(result) = self.walkdir.next() {
-                match result {
-                    Err(err)  => return Some(Err(err)),
-                    Ok(entry) => {
-                        let mut path = entry.path().to_path_buf();
-                        path.push("CONTENTS");
-                        if !path.exists() { continue; }
-                        let package = Package::new(path);
-                        return Some(Ok(package));
+                Err(err) => {
+                    if settings.verbose() {
+                        eprintln!("Error traversing directory tree: {}", err);
                     }
                 }
             }
-            return None;
         }
+
+        pool.join();
+        Arc::try_unwrap(vec).unwrap().into_inner().unwrap()
     }
 }
