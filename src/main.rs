@@ -36,7 +36,7 @@ mod symlink;
 
 use catalog::Catalog;
 use file_info::FileInfo;
-use file_system::FileSystem;
+use file_system::{File,FileSystem};
 use settings::Settings;
 
 fn main() {
@@ -50,11 +50,18 @@ fn main() {
         .map(|file| file.to_file_info())
         .collect();
 
-    for file in fs_files.difference(&pkg_files) {
-        let file: &dyn Any = file.as_ref();
-        match file.downcast_ref::<file_system::file::File>() {
-            Some(file) => println!("{}", file),
-            None => continue
-        }
+    let mut fs_files: Vec<File> = fs_files.difference(&pkg_files)
+        .map(|file| {
+            let file: &dyn Any = file.as_ref();
+            match file.downcast_ref::<File>() {
+                Some(file) => file.clone(),
+                None => panic!("Unable to downcast File!")
+            }
+        }).collect();
+
+    fs_files.sort_by(|a, b| a.path().cmp(b.path()));
+
+    for file in fs_files {
+        println!("{file}");
     }
 }

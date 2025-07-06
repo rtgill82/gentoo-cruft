@@ -30,7 +30,7 @@ use md5;
 use crate::catalog::file::FileType;
 use crate::file_info::FileInfo;
 
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 pub struct File {
     path: PathBuf,
     stat: RefCell<Stat>,
