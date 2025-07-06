@@ -14,21 +14,34 @@ installed files. Specifying `--md5` or `--mtime` will check for modified files.
 Full command line parameters are as follows:
 
 ```
-USAGE:
-    cruft [FLAGS] [OPTIONS]
+Usage: cruft [OPTIONS]
 
-FLAGS:
-    -h, --help       Prints help information
-    -m, --md5        Calculate and compare MD5 sums (inverts config setting)
-    -t, --mtime      Compare file modification times (inverts config setting)
-    -V, --version    Prints version information
-    -v, --verbose    Display warnings on STDERR
-
-OPTIONS:
-    -f, --ignore-files <file>...    Files to ignore when traversing the directory tree
-    -p, --ignore-paths <path>...    Paths to ignore when traversing the directory tree
-    -d, --pkg-dir <path>            Path to the Gentoo package database [default: /var/db/pkg]
+Options:
+  -d, --pkg-dir <PATH>      Path to the Gentoo package database [default: /var/db/pkg]
+  -m, --md5                 Calculate and compare MD5 sums (inverts config setting)
+  -t, --mtime               Compare file modification times (inverts config setting)
+  -f, --ignore-file <FILE>  Add file to ignore when traversing the directory tree
+  -p, --ignore-path <PATH>  Add path to ignore when traversing the directory tree
+  -v, --verbose             Display warnings on STDERR
+  -h, --help                Print help
+  -V, --version             Print version
 ```
+
+## Legend
+
+Output is notated with the following keys:
+
+* `R` - Regular file.
+* `D` - Directory.
+* `E` - File with executable permissions.
+* `S` - File with SUID permisisons.
+* `L` - Symlink.
+* `B` - Block device.
+* `C` - Character device.
+* `F` - FIFO.
+* `Z` - Socket.
+* `M` - MD5 sum does not match package database.
+* `T` - `mtime` does not match package database.
 
 ## Configuration
 
