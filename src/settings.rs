@@ -29,6 +29,7 @@ use std::sync::{Arc,Once};
 use std::{env,fs,process};
 
 use clap::{Arg,ArgAction,ArgMatches};
+use clap::parser::ValuesRef;
 use config::{Config,ConfigError,File};
 use serde::Deserialize;
 
@@ -138,17 +139,27 @@ impl Settings {
         }
 
         if let Some(paths) = args.get_many("ignore-path") {
-            settings.ignore_paths = Some(paths.map(|p: &String| {
-                PathBuf::from(p)
-            })
-                .collect());
+            let ignore_paths = match settings.ignore_paths {
+                Some(mut ignore_paths) => {
+                    ignore_paths.append(&mut into_path_buf(paths));
+                    ignore_paths
+                },
+
+                None => into_path_buf(paths)
+            };
+            settings.ignore_paths = Some(ignore_paths);
         }
 
         if let Some(files) = args.get_many("ignore-file") {
-            settings.ignore_files = Some(files.map(|f: &String| {
-                PathBuf::from(f)
-            })
-                .collect());
+            let ignore_files = match settings.ignore_files {
+                Some(mut ignore_files) => {
+                    ignore_files.append(&mut into_path_buf(files));
+                    ignore_files
+                },
+
+                None => into_path_buf(files)
+            };
+            settings.ignore_files = Some(ignore_files);
         }
 
         settings
@@ -183,6 +194,10 @@ fn parse_args() -> ArgMatches {
         .arg(arg!(-v --verbose "Display warnings on STDERR")
             .action(ArgAction::SetTrue))
         .get_matches()
+}
+
+fn into_path_buf<'a>(values: ValuesRef<'a, String>) -> Vec<PathBuf> {
+    values.map(|s: &String| PathBuf::from(s)).collect()
 }
 
 fn is_split_usr(links_exist: bool) -> bool {
