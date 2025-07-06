@@ -76,7 +76,7 @@ impl File {
             context.consume(&buf[0..size]);
         }
 
-        let digest = context.compute();
+        let digest = context.finalize();
         self.md5 = Some(format!("{:x}", digest));
 
         Ok(self)
