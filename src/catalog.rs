@@ -24,17 +24,18 @@
 pub mod file;
 mod package;
 
+use std::collections::HashSet;
 use std::sync::{Arc,Mutex};
 use walkdir::WalkDir;
 
+use crate::FileInfo;
 use crate::Settings;
 use self::package::Package;
-pub use self::file::File;
 
 pub struct Catalog;
 
 impl Catalog {
-    pub fn read() -> Vec<File> {
+    pub fn read() -> HashSet<Box<dyn FileInfo>> {
         let settings = Settings::get();
         let pool = threadpool::Builder::new().build();
         let walkdir = WalkDir::new(settings.pkg_dir())
@@ -67,6 +68,10 @@ impl Catalog {
         }
 
         pool.join();
-        Arc::try_unwrap(vec).unwrap().into_inner().unwrap()
+        Arc::try_unwrap(vec).unwrap()
+            .into_inner().unwrap()
+            .into_iter()
+            .map(|file| file.to_file_info())
+            .collect()
     }
 }

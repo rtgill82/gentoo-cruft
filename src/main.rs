@@ -41,16 +41,8 @@ use file_system::{File,FileSystem};
 use settings::Settings;
 
 fn main() {
-    let pkg_files: HashSet<Box<dyn FileInfo>> = Catalog::read()
-        .into_iter()
-        .map(|file| file.to_file_info())
-        .collect();
-
-    let fs_files:HashSet<Box<dyn FileInfo>> = FileSystem::read()
-        .into_iter()
-        .map(|file| file.to_file_info())
-        .collect();
-
+    let pkg_files: HashSet<Box<dyn FileInfo>> = Catalog::read();
+    let fs_files: HashSet<Box<dyn FileInfo>> = FileSystem::read();
 
     let settings = Settings::get();
     let mut diff: HashSet<_> = fs_files.difference(&pkg_files).collect();

@@ -23,6 +23,7 @@
 
 pub mod file;
 
+use std::collections::HashSet;
 use std::os::unix::fs::FileTypeExt;
 use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
@@ -32,6 +33,7 @@ use std::{fs,io};
 
 use walkdir::{DirEntry,WalkDir};
 
+use crate::FileInfo;
 use crate::Settings;
 use self::file::Stat;
 pub use self::file::File;
@@ -48,7 +50,7 @@ macro_rules! systime_to_unix {
 pub struct FileSystem;
 
 impl FileSystem {
-    pub fn read() -> Vec<File> {
+    pub fn read() -> HashSet<Box<dyn FileInfo>> {
         let settings = Settings::get();
         let walkdir = WalkDir::new("/");
         let walkdir = walkdir.into_iter()
@@ -86,7 +88,11 @@ impl FileSystem {
         }
 
         pool.join();
-        Arc::try_unwrap(vec).unwrap().into_inner().unwrap()
+        Arc::try_unwrap(vec).unwrap()
+            .into_inner().unwrap()
+            .into_iter()
+            .map(|file| file.to_file_info())
+            .collect()
     }
 }
 
