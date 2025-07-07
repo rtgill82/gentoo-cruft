@@ -26,6 +26,7 @@ extern crate clap;
 extern crate serde;
 
 use std::any::Any;
+use std::borrow::Borrow;
 use std::collections::HashSet;
 
 mod catalog;
@@ -50,18 +51,57 @@ fn main() {
         .map(|file| file.to_file_info())
         .collect();
 
-    let mut fs_files: Vec<File> = fs_files.difference(&pkg_files)
-        .map(|file| {
-            let file: &dyn Any = file.as_ref();
-            match file.downcast_ref::<File>() {
-                Some(file) => file.clone(),
-                None => panic!("Unable to downcast File!")
-            }
-        }).collect();
 
-    fs_files.sort_by(|a, b| a.path().cmp(b.path()));
+    let settings = Settings::get();
+    let mut diff: HashSet<_> = fs_files.difference(&pkg_files).collect();
+    if settings.md5() || settings.mtime() {
+        let modified = find_modified_files(&pkg_files, &fs_files);
+        diff.extend(modified);
+    }
 
-    for file in fs_files {
+    let mut diff: Vec<File> = diff.iter().map(|file| {
+        let file: &dyn Any = file.as_ref();
+        match file.downcast_ref::<File>() {
+            Some(file) => file.clone(),
+            None => panic!("Unable to downcast File!")
+        }
+    }).collect();
+
+    diff.sort_by(|a, b| a.path().cmp(b.path()));
+    for file in diff {
         println!("{file}");
     }
+}
+
+fn find_modified_files<'a>(pkg_files: &'a HashSet<Box<dyn FileInfo>>,
+                           fs_files:  &'a HashSet<Box<dyn FileInfo>>)
+    -> HashSet<&'a Box<dyn FileInfo>>
+{
+    let settings = Settings::get();
+
+    let xset: HashSet<_> = pkg_files.iter()
+        .filter_map(|pkg_file| {
+            if fs_files.contains(pkg_file) {
+                return Some(pkg_file);
+            }
+
+            None
+        }).collect();
+
+    fs_files.into_iter().filter_map(|fs_file| {
+        if let Some(xset_file) = xset.get(fs_file) {
+            let xset_file: &dyn FileInfo = (**xset_file).borrow();
+            if settings.md5() && !fs_file.md5_matches(xset_file)
+            {
+                return Some(fs_file);
+            }
+
+            if settings.mtime() && !fs_file.mtime_matches(xset_file)
+            {
+                return Some(fs_file);
+            }
+        }
+
+        None
+    }).collect()
 }

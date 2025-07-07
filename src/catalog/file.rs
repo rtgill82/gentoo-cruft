@@ -79,7 +79,11 @@ impl FileInfo for File {
         self.md5.as_deref()
     }
 
-    fn md5_matches(&self, _value: bool) { }
+    fn md5_matches(&self, other: &dyn FileInfo) -> bool {
+        other.md5_matches(self)
+    }
 
-    fn mtime_matches(&self, _value: bool) { }
+    fn mtime_matches(&self, other: &dyn FileInfo) -> bool {
+        other.mtime_matches(self)
+    }
 }

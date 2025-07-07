@@ -25,7 +25,6 @@ use std::any::Any;
 use std::hash::{Hash,Hasher};
 use std::path::Path;
 
-use crate::Settings;
 use crate::catalog::file::FileType;
 
 pub trait FileInfo: Any {
@@ -33,31 +32,16 @@ pub trait FileInfo: Any {
     fn file_type(&self) -> FileType;
     fn mtime(&self) -> u64;
     fn md5(&self) -> Option<&str>;
-    fn md5_matches(&self, value: bool);
-    fn mtime_matches(&self, value: bool);
+    fn md5_matches(&self, other: &dyn FileInfo) -> bool;
+    fn mtime_matches(&self, other: &dyn FileInfo) -> bool;
 }
 
 impl Eq for dyn FileInfo { }
 
 impl PartialEq for dyn FileInfo {
     fn eq(&self, other: &dyn FileInfo) -> bool {
-        let mut rv = self.path() == other.path() &&
-            self.file_type() == other.file_type();
-
-        let settings = Settings::get();
-        if settings.md5() && rv == true {
-            rv &= self.md5() == other.md5();
-            self.md5_matches(rv);
-            other.md5_matches(rv);
-        }
-
-        if settings.mtime() && rv == true {
-            rv &= self.mtime() == other.mtime();
-            self.mtime_matches(rv);
-            other.mtime_matches(rv);
-        }
-
-        rv
+        self.path() == other.path() &&
+            self.file_type() == other.file_type()
     }
 }
 
@@ -65,14 +49,5 @@ impl Hash for dyn FileInfo {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.path().hash(state);
         self.file_type().hash(state);
-
-        let settings = Settings::get();
-        if settings.mtime() {
-            self.mtime().hash(state);
-        }
-
-        if settings.md5() {
-            self.md5().hash(state);
-        }
     }
 }

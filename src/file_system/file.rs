@@ -104,7 +104,8 @@ impl FileInfo for File {
             Stat::CharDevice => FileType::Obj,
             Stat::Fifo => FileType::Obj,
             Stat::Socket => FileType::Obj,
-            _ => panic!("Invalid file type: {:?}", stat)
+            Stat::MD5 => FileType::Obj,
+            Stat::MTIME => FileType::Obj
         }
     }
 
@@ -116,16 +117,26 @@ impl FileInfo for File {
         self.md5.as_deref()
     }
 
-    fn md5_matches(&self, value: bool) {
-        if !value {
+    fn md5_matches(&self, other: &dyn FileInfo) -> bool {
+        if other.file_type() == FileType::Obj &&
+            self.md5() != other.md5()
+        {
             self.stat.replace(Stat::MD5);
+            return false;
         }
+
+        return true;
     }
 
-    fn mtime_matches(&self, value: bool) {
-        if !value {
+    fn mtime_matches(&self, other: &dyn FileInfo) -> bool {
+        if other.file_type() == FileType::Obj &&
+            self.mtime() != other.mtime()
+        {
             self.stat.replace(Stat::MTIME);
+            return false;
         }
+
+        return true;
     }
 }
 
