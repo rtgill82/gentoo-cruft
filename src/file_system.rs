@@ -26,7 +26,7 @@ pub mod file;
 use std::collections::HashSet;
 use std::os::unix::fs::FileTypeExt;
 use std::os::unix::fs::MetadataExt;
-use std::path::PathBuf;
+use std::path::{Path,PathBuf};
 use std::sync::{Arc,Mutex};
 use std::time::SystemTime;
 use std::{fs,io};
@@ -68,10 +68,12 @@ impl FileSystem {
                     let vec = vec.clone();
 
                     pool.execute(move || {
-                        match stat(path, settings) {
+                        match stat(path, &settings) {
                             Ok(file) => {
-                                let mut vec = vec.lock().unwrap();
-                                vec.push(file);
+                                if !ignore_file(file.path(), &settings) {
+                                    let mut vec = vec.lock().unwrap();
+                                    vec.push(file);
+                                }
                             },
 
                             Err(_) => { }
@@ -96,6 +98,14 @@ impl FileSystem {
     }
 }
 
+fn ignore_file(path: &Path, settings: &Settings) -> bool {
+    if let Some(ignore_files) = settings.ignore_files() {
+        return ignore_files.iter().any(|e| e == path);
+    }
+
+    false
+}
+
 fn is_ignored(entry: &DirEntry, settings: &Settings) -> bool {
     let mut rv = true;
     if !entry.file_type().is_dir() {
@@ -111,7 +121,7 @@ fn is_ignored(entry: &DirEntry, settings: &Settings) -> bool {
     rv
 }
 
-fn stat(path: PathBuf, settings: Arc<Settings>) -> io::Result<File>
+fn stat(path: PathBuf, settings: &Settings) -> io::Result<File>
 {
     let stat: Stat;
     let mtime: u64;
